@@ -1,7 +1,7 @@
 name: Deploy Arch Wiki Mirror
 on:
   schedule:
-    - cron: '27 3 4 * *'
+    - cron: "27 3 4 * *"
   workflow_dispatch:
 
 permissions:
@@ -22,11 +22,24 @@ jobs:
       - name: Get Wiki Package Details
         id: pkg_info
         run: |
-          FILE_NAME=$(curl -s "https://archlinux.org/packages/extra/any/arch-wiki-docs/json/" | jq -r .filename)
-          echo "url=https://mirror.rackspace.com/archlinux/extra/os/x86_64/$FILE_NAME" >> $GITHUB_OUTPUT
+          echo "Fetching package info..."
+          JSON_RESPONSE=$(curl -s -A "ArchWikiMirror/1.0 (GitHub Actions; +https://github.com/${{ github.repository }})" "https://archlinux.org/packages/extra/any/arch-wiki-docs/json/")
+          
+          echo "JSON Response:"
+          echo "$JSON_RESPONSE"
+          
+          FILE_NAME=$(echo "$JSON_RESPONSE" | jq -r .filename)
+          echo "Parsed Filename: $FILE_NAME"
+          
+          FILE_URL="https://mirror.rackspace.com/archlinux/extra/os/x86_64/$FILE_NAME"
+          echo "Constructed URL: $FILE_URL"
+          
+          echo "url=$FILE_URL" >> $GITHUB_OUTPUT
 
       - name: Download Wiki Archive
-        run: curl -L "${{ steps.pkg_info.outputs.url }}" -o wiki.tar.zst
+        run: |
+          echo "Downloading from: ${{ steps.pkg_info.outputs.url }}"
+          curl -L -A "ArchWikiMirror/1.0 (GitHub Actions; +https://github.com/${{ github.repository }})" "${{ steps.pkg_info.outputs.url }}" -o wiki.tar.zst
 
       - name: Create Upload Root
         run: |
@@ -38,7 +51,10 @@ jobs:
       - name: Merge Repository Additions
         run: |
           if [ -d "src" ]; then
+            echo "Source directory 'src' found. Merging additions..."
             cp -rv src/* public/
+          else
+            echo "Source directory 'src' not found. Skipping merge."
           fi
 
       - name: Upload Artifact
