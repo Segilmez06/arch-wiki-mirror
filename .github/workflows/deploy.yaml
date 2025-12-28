@@ -1,0 +1,49 @@
+name: Deploy Arch Wiki Mirror
+on:
+  schedule:
+    - cron: '27 3 4 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Fetch and Extract Wiki
+        run: |
+
+          # 1. Install zstd support
+          sudo apt-get install -y zstd
+
+          # 2. Determine the file URL
+          FILE_NAME=$(curl -s "https://archlinux.org/packages/extra/any/arch-wiki-docs/json/" | jq -r .filename)
+          FILE_URL="https://mirror.rackspace.com/archlinux/extra/os/x86_64/$FILE_NAME"
+
+          # 3. Fetch the wiki
+          curl -L $FILE_URL -o wiki.tar.zst
+
+          # 4. Prepare wiki content
+          mkdir -p build
+          mkdir -p public
+          tar -I zstd -xf wiki.tar.zst -C build
+          cp -rn build/usr/share/doc/arch-wiki/html/* public/
+
+          # 5. Marge the repo additions
+          if [ -d "src" ]; then
+            cp -rv src/* public/
+          fi
+
+      - name: Upload Artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./public
+
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
