@@ -20,7 +20,7 @@ jobs:
         run: sudo apt-get install -y zstd
 
       - name: Download Wiki Archive
-        run: wget -c https://archlinux.org/packages/extra/any/arch-wiki-docs/download/ -O wiki.tar.zst
+        run: curl -L -o wiki.tar.zst https://archlinux.org/packages/extra/any/arch-wiki-docs/download/
 
       - name: Create Upload Root
         run: |
