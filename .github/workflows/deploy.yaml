@@ -27,12 +27,13 @@ jobs:
           mkdir -p ./arch-root/var/lib/pacman
           
           # Generate a minimal pacman.conf
-          # SigLevel is set to Optional to avoid GPG keyring setup issues on Ubuntu
+          # SigLevel is set to Never to avoid GPG keyring setup issues
           cat <<EOF > ./pacman.conf
           [options]
           DBPath = $(pwd)/arch-root/var/lib/pacman
-          Architecture = auto
-          SigLevel = Optional TrustAll
+          Architecture = x86_64
+          SigLevel = Never
+          RemoteFileSigLevel = Never
 
           [core]
           Server = https://mirrors.kernel.org/archlinux/\$repo/os/\$arch
@@ -46,10 +47,11 @@ jobs:
           # -Sw: Download only (do not install)
           # --cachedir .: Save the file to the current working directory
           sudo pacman --config ./pacman.conf -Sy
-          sudo pacman --config ./pacman.conf --cachedir . -Sw arch-wiki-docs --noconfirm
+          sudo pacman --config ./pacman.conf --cachedir . -Sw arch-wiki-docs --noconfirm --dbonly
           
           # Rename the downloaded file to a standard name for the next step
           find . -name "arch-wiki-docs-*.pkg.tar.zst" -exec mv {} wiki.tar.zst \;
+          ls -lh wiki.tar.zst
 
       - name: Create Upload Root
         run: |
