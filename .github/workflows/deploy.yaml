@@ -16,26 +16,27 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Fetch and Extract Wiki
+      - name: Install Dependencies
+        run: sudo apt-get install -y zstd
+
+      - name: Get Wiki Package Details
+        id: pkg_info
         run: |
-
-          # 1. Install zstd support
-          sudo apt-get install -y zstd
-
-          # 2. Determine the file URL
           FILE_NAME=$(curl -s "https://archlinux.org/packages/extra/any/arch-wiki-docs/json/" | jq -r .filename)
-          FILE_URL="https://mirror.rackspace.com/archlinux/extra/os/x86_64/$FILE_NAME"
+          echo "url=https://mirror.rackspace.com/archlinux/extra/os/x86_64/$FILE_NAME" >> $GITHUB_OUTPUT
 
-          # 3. Fetch the wiki
-          curl -L $FILE_URL -o wiki.tar.zst
+      - name: Download Wiki Archive
+        run: curl -L "${{ steps.pkg_info.outputs.url }}" -o wiki.tar.zst
 
-          # 4. Prepare wiki content
+      - name: Create Upload Root
+        run: |
           mkdir -p build
           mkdir -p public
           tar -I zstd -xf wiki.tar.zst -C build
           cp -rn build/usr/share/doc/arch-wiki/html/* public/
 
-          # 5. Marge the repo additions
+      - name: Merge Repository Additions
+        run: |
           if [ -d "src" ]; then
             cp -rv src/* public/
           fi
