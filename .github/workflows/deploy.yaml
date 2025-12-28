@@ -19,8 +19,33 @@ jobs:
       - name: Install Dependencies
         run: sudo apt-get install -y zstd
 
+      - name: Find Latest Package Version
+        id: find_pkg
+        run: |
+          PKG_NAME="arch-wiki-docs"
+          MIRROR_URL="https://mirrors.kernel.org/archlinux/extra/os/any/"
+          
+          echo "Fetching directory listing from: $MIRROR_URL"
+          
+          # Fetch directory listing and parse filename
+          LATEST_FILENAME=$(curl -s "$MIRROR_URL" | \
+            grep -oP "$PKG_NAME-[0-9][^\"]+\.pkg\.tar\.zst" | \
+            sort -V | tail -n 1)
+            
+          if [ -z "$LATEST_FILENAME" ]; then
+            echo "Error: Could not find package '$PKG_NAME' in mirror."
+            exit 1
+          fi
+          
+          echo "Found latest version: $LATEST_FILENAME"
+          echo "filename=$LATEST_FILENAME" >> $GITHUB_OUTPUT
+          echo "mirror_url=$MIRROR_URL" >> $GITHUB_OUTPUT
+
       - name: Download Wiki Archive
-        run: curl -L -o wiki.tar.zst https://archlinux.org/packages/extra/any/arch-wiki-docs/download/
+        run: |
+          FULL_URL="${{ steps.find_pkg.outputs.mirror_url }}${{ steps.find_pkg.outputs.filename }}"
+          echo "Downloading from: $FULL_URL"
+          curl -L -o wiki.tar.zst "$FULL_URL"
 
       - name: Create Upload Root
         run: |
