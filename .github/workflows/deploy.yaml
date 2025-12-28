@@ -23,7 +23,7 @@ jobs:
         id: find_pkg
         run: |
           PKG_NAME="arch-wiki-docs"
-          MIRROR_URL="https://mirrors.kernel.org/archlinux/extra/os/any/"
+          MIRROR_URL="https://mirrors.kernel.org/archlinux/extra/os/x86_64/"
           
           echo "Fetching directory listing from: $MIRROR_URL"
           
