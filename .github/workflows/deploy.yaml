@@ -17,35 +17,39 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Dependencies
-        run: sudo apt-get install -y zstd
-
-      - name: Find Latest Package Version
-        id: find_pkg
         run: |
-          PKG_NAME="arch-wiki-docs"
-          MIRROR_URL="https://mirrors.kernel.org/archlinux/extra/os/x86_64/"
+          sudo apt-get update
+          sudo apt-get install -y zstd pacman-package-manager
+
+      - name: Configure Pacman
+        run: |
+          # Create a local directory for the pacman database
+          mkdir -p ./arch-root/var/lib/pacman
           
-          echo "Fetching directory listing from: $MIRROR_URL"
-          
-          # Fetch directory listing and parse filename
-          LATEST_FILENAME=$(curl -s "$MIRROR_URL" | \
-            grep -oP "$PKG_NAME-[0-9][^\"]+\.pkg\.tar\.zst" | \
-            sort -V | tail -n 1)
-            
-          if [ -z "$LATEST_FILENAME" ]; then
-            echo "Error: Could not find package '$PKG_NAME' in mirror."
-            exit 1
-          fi
-          
-          echo "Found latest version: $LATEST_FILENAME"
-          echo "filename=$LATEST_FILENAME" >> $GITHUB_OUTPUT
-          echo "mirror_url=$MIRROR_URL" >> $GITHUB_OUTPUT
+          # Generate a minimal pacman.conf
+          # SigLevel is set to Optional to avoid GPG keyring setup issues on Ubuntu
+          cat <<EOF > ./pacman.conf
+          [options]
+          DBPath = $(pwd)/arch-root/var/lib/pacman
+          Architecture = auto
+          SigLevel = Optional TrustAll
+
+          [core]
+          Server = https://mirrors.kernel.org/archlinux/\$repo/os/\$arch
+          [extra]
+          Server = https://mirrors.kernel.org/archlinux/\$repo/os/\$arch
+          EOF
 
       - name: Download Wiki Archive
         run: |
-          FULL_URL="${{ steps.find_pkg.outputs.mirror_url }}${{ steps.find_pkg.outputs.filename }}"
-          echo "Downloading from: $FULL_URL"
-          curl -L -o wiki.tar.zst "$FULL_URL"
+          # -Sy: Sync databases
+          # -Sw: Download only (do not install)
+          # --cachedir .: Save the file to the current working directory
+          sudo pacman --config ./pacman.conf -Sy
+          sudo pacman --config ./pacman.conf --cachedir . -Sw arch-wiki-docs --noconfirm
+          
+          # Rename the downloaded file to a standard name for the next step
+          find . -name "arch-wiki-docs-*.pkg.tar.zst" -exec mv {} wiki.tar.zst \;
 
       - name: Create Upload Root
         run: |
